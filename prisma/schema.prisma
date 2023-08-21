@@ -2,17 +2,15 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "sqlite"
-    // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
-    // Further reading:
-    // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
-    // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
-    url      = env("DATABASE_URL")
+  provider = "mysql"
+  url = env("DATABASE_URL")
+  relationMode = "prisma"
 }
+
 
 model Example {
     id        String   @id @default(cuid())
@@ -27,16 +25,17 @@ model Account {
     type              String
     provider          String
     providerAccountId String
-    refresh_token     String? // @db.Text
-    access_token      String? // @db.Text
+    refresh_token     String? @db.Text
+    access_token      String? @db.Text
     expires_at        Int?
     token_type        String?
     scope             String?
-    id_token          String? // @db.Text
+    id_token          String? @db.Text
     session_state     String?
     user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([provider, providerAccountId])
+    @@index([userId])
 }
 
 model Session {
@@ -45,6 +44,8 @@ model Session {
     userId       String
     expires      DateTime
     user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
 }
 
 model User {
@@ -55,6 +56,12 @@ model User {
     image         String?
     accounts      Account[]
     sessions      Session[]
+    posts     Post[]
+    likes     Like[]
+    comments  Comment[]
+    saves     Save[]
+    following Follow[] @relation("Follows")
+    followers Follow[] @relation("Followed")
 }
 
 model VerificationToken {
@@ -64,3 +71,70 @@ model VerificationToken {
 
     @@unique([identifier, token])
 }
+
+model Post {
+    id        String    @id @default(cuid())
+    content   String    // For the text content
+    photo1    String?   // URL or path for the 1st photo
+    photo2    String?   // URL or path for the 2nd photo
+    photo3    String?   // URL or path for the 3rd photo
+    photo4    String?   // URL or path for the 4th photo
+    photo5    String?   // URL or path for the 5th photo
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    userId    String
+    user      User      @relation(fields: [userId], references: [id])
+    likes     Like[]
+    comments  Comment[]
+    saves     Save[]
+
+    @@index([userId])
+}
+
+
+model Like {
+    id        String    @id @default(cuid())
+    userId    String
+    postId    String
+    user      User      @relation(fields: [userId], references: [id])
+    post      Post      @relation(fields: [postId], references: [id])
+
+    @@index([userId])
+    @@index([postId])
+}
+
+model Comment {
+    id        String    @id @default(cuid())
+    content   String
+    userId    String
+    postId    String
+    user      User      @relation(fields: [userId], references: [id])
+    post      Post      @relation(fields: [postId], references: [id])
+
+    @@index([postId])
+    @@index([userId])
+}
+
+model Save {
+    id        String    @id @default(cuid())
+    userId    String
+    postId    String
+    user      User      @relation(fields: [userId], references: [id])
+    post      Post      @relation(fields: [postId], references: [id])
+
+    @@index([userId])
+    @@index([postId])
+}
+
+model Follow {
+    id          String    @id @default(cuid())
+    followerId  String
+    followingId String
+    follower    User      @relation("Follows", fields: [followerId], references: [id])
+    following   User      @relation("Followed", fields: [followingId], references: [id])
+
+    @@index([followerId])
+    @@index([followingId])
+}
+
+

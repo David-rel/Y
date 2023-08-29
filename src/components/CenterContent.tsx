@@ -2,15 +2,58 @@ import React, { useState } from "react";
 import { FaCamera } from "react-icons/fa"; // Importing the camera icon
 import Post from "./Post";
 import { useSession } from "next-auth/react";
+import { api } from "~/utils/api";
 
-function CenterContent({ className }: { className?: string }) {
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: Date | null;
+  image: string | null;
+  // Add other fields of the User model as required
+};
+
+type PostType = {
+  createdAt: string;
+  updatedAt: string;
+  content: string;
+  photo1: string | null;
+  photo2: string | null;
+  photo3: string | null;
+  photo4: string | null;
+  photo5: string | null;
+  id: string;
+  userId: string;
+  user: User; // Add this line to include the user data
+};
+
+function CenterContent({}: { className?: string }) {
   const [postContent, setPostContent] = useState("");
-  const { data: session } = useSession();
+  const { data, isLoading, isError, refetch } =
+    api.post.all.useQuery<PostType[]>();
 
-  const handlePost = () => {
-    console.log(postContent);
+  console.log(data);
+  const createPost = api.post.create.useMutation({
+    onSuccess: () => {
+      refetch(); // Refetch the posts list after successfully creating a new post
+      setPostContent(""); // Clear the input after posting
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault(); // Prevent default form submission behavior
+
+    const postData = {
+      content: postContent,
+    };
+    createPost.mutate(postData);
     setPostContent(""); // Clear the input after posting
   };
+
+  function formatDate(dateString: string) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  }
 
   return (
     <div className="w-full">
@@ -18,7 +61,10 @@ function CenterContent({ className }: { className?: string }) {
         <h1 className="p-4 pb-4 text-4xl font-bold text-white">
           Welcome to the New X, Y
         </h1>
-        <div className=" border-b border-gray-400 p-4 pb-4">
+        <form
+          className="border-b border-gray-400 p-4 pb-4"
+          onSubmit={handleSubmit}
+        >
           {" "}
           {/* Moved borders here */}
           <div className="mb-4">
@@ -33,25 +79,33 @@ function CenterContent({ className }: { className?: string }) {
             <button className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-500 text-white hover:bg-gray-400">
               <FaCamera />
             </button>
-            <button
-              onClick={handlePost}
-              className="rounded-full bg-white px-12 py-2 text-xl font-bold text-black hover:bg-white/90"
-            >
+            <button className="rounded-full bg-white px-12 py-2 text-xl font-bold text-black hover:bg-white/90">
               Post
             </button>
           </div>
-        </div>
+        </form>
       </div>
-      <div className=" min-h-screen w-2full border-r border-gray-400">
-        <Post
-          photoUrl={session?.user.image || "/default.jpg"} // Fallback to a default image
-          name={session?.user.name || "Anonymous"} // Fallback to "Anonymous"
-          date="August 25, 2023"
-          content="This is a sample post content. Replace with actual content."
-        />
+      <div className=" w-2full min-h-screen border-r border-gray-400">
+        {isLoading && <p>Loading...</p>}
+        {isError && <p>Error loading posts.</p>}
+        {data &&
+          data.map((post, index) => {
+            return (
+              <>
+                <Post
+                  key={post.id}
+                  photoUrl={post.user.image || "/default.jpg"} // Fallback to a default image
+                  name={post.user.name || "Anonymous"} // Fallback to "Anonymous"
+                  date={formatDate(post.createdAt)}
+                  content={post.content || ""}
+                />
+              </>
+            );
+          })}
       </div>
     </div>
   );
 }
 
 export default CenterContent;
+
